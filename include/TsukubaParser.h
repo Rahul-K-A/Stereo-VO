@@ -8,8 +8,11 @@ class TsukubaParser{
     public:
         TsukubaParser(string TsukubaPath);
         ~TsukubaParser();
-        vector<Mat> getNextStereoImages();
-        void showStereoImages();
+        void getNextStereoImages();
+        Mat getLImage();
+        Mat getRImage();
+
+        int showStereoImages();
         int getIter();
     
     private:

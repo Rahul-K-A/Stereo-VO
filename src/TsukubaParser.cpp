@@ -6,34 +6,45 @@ TsukubaParser::TsukubaParser(string TsukubaPath): imgDirPath(TsukubaPath), iter(
     {
         imgDirPath.append("/");
     }
-    imgDirPath.append("NewTsukubaStereoDataset/illumination/daylight/");
+    imgDirPath.append("NewTsukubaStereoDataset/illumination/fluorescent/");
+    cout << "ImgDir " << imgDirPath << endl;
     namedWindow("Concat");
 }
 
 
-vector<Mat> TsukubaParser::getNextStereoImages()
+void TsukubaParser::getNextStereoImages()
 {
-    vector<Mat> OutputVec;
     assert(iter <= 1800);
     snprintf(LNameBuff, NAME_BUF_SIZE-1 ,"L_%05d.png",iter);
     snprintf(RNameBuff, NAME_BUF_SIZE-1 ,"R_%05d.png",iter);
     LFullPath = imgDirPath + string(LNameBuff);
     RFullPath = imgDirPath + string(RNameBuff);
-    OutputVec.push_back(RImage);
-    OutputVec.push_back(LImage);
-    LImage = imread(LFullPath.c_str(), IMREAD_UNCHANGED);
-    RImage = imread(LFullPath.c_str(), IMREAD_UNCHANGED);
+    LImage = imread(LFullPath.c_str(), 0);
+    RImage = imread(RFullPath.c_str(), 0);
     iter ++;
-    return OutputVec;
 }
 
-void TsukubaParser::showStereoImages()
+
+Mat TsukubaParser::getLImage()
+{
+    return LImage;
+}
+
+
+Mat TsukubaParser::getRImage()
+{
+    return RImage;
+}
+
+
+
+int TsukubaParser::showStereoImages()
 {
     vector<Mat> vec{LImage,RImage};
     Mat concatImage;
     hconcat(vec, concatImage);
     imshow("Concat", concatImage);
-    waitKey(1);
+    return waitKey(1);
 }
 
 int TsukubaParser::getIter()
