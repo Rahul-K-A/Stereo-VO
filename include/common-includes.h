@@ -1,15 +1,17 @@
 #ifndef COMMON_INCLUDES_H
 #define COMMON_INCLUDES_H
-#include <opencv2/core.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/features2d.hpp>
-#include <opencv2/calib3d.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/ximgproc/disparity_filter.hpp>
+#include <opencv4/opencv2/core.hpp>
+#include <opencv4/opencv2/highgui.hpp>
+#include <opencv4/opencv2/features2d.hpp>
+#include <opencv4/opencv2/calib3d.hpp>
+#include <opencv4/opencv2/imgproc/imgproc.hpp>
+#include <opencv4/opencv2/ximgproc/disparity_filter.hpp>
+#include <opencv4/opencv2/xfeatures2d.hpp>
 #include <iostream>
 #include <cstdio>
 #include <string>
 #include <vector>
 using namespace std;
 using namespace cv;
+using namespace xfeatures2d;
 #endif //COMMON_INCLUDES_H

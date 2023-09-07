@@ -19,8 +19,8 @@ void TsukubaParser::getNextStereoImages()
     snprintf(RNameBuff, NAME_BUF_SIZE-1 ,"R_%05d.png",iter);
     LFullPath = imgDirPath + string(LNameBuff);
     RFullPath = imgDirPath + string(RNameBuff);
-    LImage = imread(LFullPath.c_str(), 0);
-    RImage = imread(RFullPath.c_str(), 0);
+    LImage = imread(LFullPath.c_str(), IMREAD_UNCHANGED);
+    RImage = imread(RFullPath.c_str(), IMREAD_UNCHANGED);
     iter ++;
 }
 
