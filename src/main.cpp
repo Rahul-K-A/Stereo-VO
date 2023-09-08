@@ -13,6 +13,11 @@ int block_curr = 48 ;
 
 Mat K= (Mat1d(3, 3) << FX, 0, CX, 0, FY, CY, 0, 0, 1);
 
+Mat currTL = (Mat1d(1,3) << 0,0,0);
+Mat currTR = (Mat1d(1,3) << 0,10,0 );
+Mat currRL = (Mat1d::eye(3,3));
+Mat currRR = (Mat1d::eye(3,3));
+
 
 
 
@@ -40,13 +45,12 @@ int main(int argc, char** argv)
 
     Ptr<StereoSGBM> left_matcher  = StereoSGBM::create(0, ndisparities, wsize);
     left_matcher->setMinDisparity(0);
-    left_matcher->setNumDisparities(160);
-    left_matcher->setSpeckleRange(7);
-    left_matcher->setP1(200);
-    left_matcher->setP2(500);
-    left_matcher->setPreFilterCap(1);
-    left_matcher->setMode(StereoSGBM::MODE_SGBM_3WAY);
-    left_matcher->setUniquenessRatio(0);
+    left_matcher->setNumDisparities(96);
+    left_matcher->setP1(8 * wsize * wsize);
+    left_matcher->setP2(32 * wsize * wsize);
+    left_matcher->setPreFilterCap(63);
+    left_matcher->setMode(StereoSGBM::MODE_HH);
+    left_matcher->setUniquenessRatio(100);
     Ptr<ximgproc::DisparityWLSFilter> wls_filter = ximgproc::createDisparityWLSFilter(left_matcher);
     Ptr<StereoMatcher> right_matcher = ximgproc::createRightMatcher(left_matcher);
     Ptr<SURF> surf = SURF::create();
@@ -54,7 +58,7 @@ int main(int argc, char** argv)
 
     wls_filter->setSigmaColor(2.f);
     Mat LGImage, RGImage, dImageRL, dImageLR, dImageF;
-    Mat d1, d2;
+    Mat descLeft, descRight;
     Mat p1, p2;
 
     while( tParser.getIter() <= 1800)
@@ -77,17 +81,17 @@ int main(int argc, char** argv)
         
         dImageF = dImageF(ROI);
         Mat LGImage1 = LGImage(ROI); 
-        vector<KeyPoint> kp1,kp2;
+        vector<KeyPoint> kpLeft,kpRight;
         vector<vector<DMatch>> knn_matches;
         vector<DMatch> good_matches;
 
-        surf->detectAndCompute(LGImage1, noArray(), kp1, d1);
-        surf->detectAndCompute(RGImage, noArray(), kp2, d2);
+        surf->detectAndCompute(LGImage1, noArray(), kpLeft, descLeft);
+        surf->detectAndCompute(RGImage, noArray(), kpRight, descRight);
 
-        matcher->knnMatch(d1,d2,knn_matches,2);
+        matcher->knnMatch(descLeft, descRight, knn_matches,2);
 
         // //-- Filter matches using the Lowe's ratio test
-        const float ratio_thresh = 0.31f;
+        const float ratio_thresh = 0.5f;
         for (size_t i = 0; i < knn_matches.size(); i++)
         {
             if (knn_matches[i][0].distance < ratio_thresh * knn_matches[i][1].distance)
@@ -96,22 +100,40 @@ int main(int argc, char** argv)
             }
         }
 
+        std::vector<Point2f> leftP;
+        std::vector<Point2f> rightP;
+        for( size_t i = 0; i < good_matches.size(); i++ )
+        {
+            //-- Get the keypoints from the good matches
+            Point2f newLeftPt = kpLeft[ good_matches[i].queryIdx ].pt;
+            Point2f newRightPt = kpLeft[ good_matches[i].queryIdx ].pt;
+            if(newLeftPt.y != newRightPt.y)
+            {
+                cout<<"y axis doesnt match! \n";
+            }
+
+            leftP.push_back( newLeftPt );
+            rightP.push_back( newRightPt );
+        }
+
+
+
         if(good_matches.size() < 5)
         {
             cout<<"WARNING, num matches less than minimum" << tParser.getIter() -1 << "\n";
         }
         // -- Draw matches
         Mat img_matches;
-        drawMatches( LGImage1, kp1, RGImage, kp2, good_matches, img_matches, Scalar::all(-1), Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
+        drawMatches( LGImage1, kpLeft, RGImage, kpRight, good_matches, img_matches, Scalar::all(-1), Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
 
-        //imshow("disLR",img_matches);
+        imshow("disLR",img_matches);
 
         // imshow("disRL",LGImage1);
-        // imshow("disF", dImageF);
-        // if( tParser.showStereoImages() == 27)
-        // {
-        //     break;
-        // }
+        imshow("disF", dImageF);
+        if( tParser.showStereoImages() == 27)
+        {
+            break;
+        }
     }
 
     cv::destroyAllWindows();
