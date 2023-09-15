@@ -14,7 +14,7 @@ int block_curr = 48 ;
 Mat K= (Mat1d(3, 3) << FX, 0, CX, 0, FY, CY, 0, 0, 1);
 
 Mat currTL = (Mat1d(1,3) << 0,0,0);
-Mat currTR = (Mat1d(1,3) << 0,10,0 );
+Mat currTR = (Mat1d(1,3) << 10.f,0,0 );
 Mat currRL = (Mat1d::eye(3,3));
 Mat currRR = (Mat1d::eye(3,3));
 
@@ -45,12 +45,13 @@ int main(int argc, char** argv)
 
     Ptr<StereoSGBM> left_matcher  = StereoSGBM::create(0, ndisparities, wsize);
     left_matcher->setMinDisparity(0);
-    left_matcher->setNumDisparities(96);
-    left_matcher->setP1(8 * wsize * wsize);
-    left_matcher->setP2(32 * wsize * wsize);
+    left_matcher->setNumDisparities(80);
+    left_matcher->setP1(24 * wsize * wsize);
+    left_matcher->setP2(96 * wsize * wsize);
     left_matcher->setPreFilterCap(63);
     left_matcher->setMode(StereoSGBM::MODE_HH);
     left_matcher->setUniquenessRatio(100);
+    left_matcher->setSpeckleWindowSize(100);
     Ptr<ximgproc::DisparityWLSFilter> wls_filter = ximgproc::createDisparityWLSFilter(left_matcher);
     Ptr<StereoMatcher> right_matcher = ximgproc::createRightMatcher(left_matcher);
     Ptr<SURF> surf = SURF::create();
