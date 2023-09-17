@@ -14,18 +14,13 @@ int block_curr = 48 ;
 
 Mat K= (Mat1d(3, 3) << FX, 0, CX, 0, FY, CY, 0, 0, 1);
 
-Mat currTL = (Mat1d(1,3) << 0,0,0);
-Mat currTR = (Mat1d(1,3) << 10.f,0,0 );
-Mat currRL = (Mat1d::eye(3,3));
-Mat currRR = (Mat1d::eye(3,3));
+//Left cam -> origin of coordinate system
+Mat currPosition = (Mat1d(1, 3) << 0, 0, 0);
+Mat currRotation = Mat::eye(3, 3, CV_64F);
 
-
-
-
-static void on_trackbar_1( int, void* )
-{
-    return;
-}
+//Right cam
+Mat relativeRCamPosition = (Mat1d(1,3) << 10, 0, 0);
+Mat relativeRCamRotation = Mat::eye(3,3,CV_64F);
 
 
 int main(int argc, char** argv)
@@ -48,12 +43,15 @@ int main(int argc, char** argv)
         tParser.getNextStereoImages();
         cvtColor(tParser.getLImage(), LGImage, COLOR_BGRA2GRAY);
         cvtColor(tParser.getRImage(), RGImage, COLOR_BGRA2GRAY);
+        //cout << LGImage.rows << " cols: " << LGImage.cols << endl;
         vector<KeyPoint> kpLeft,kpRight;
         Mat descriptorLeft, descriptorRight;
         cvHelpers::getFeatures(surf, LGImage, kpLeft, descriptorLeft );
         cvHelpers::getFeatures(surf, RGImage, kpRight, descriptorRight );
-        cvHelpers::filterPoints(matcher, kpLeft, descriptorLeft, kpRight, descriptorRight);
-
+        // TODO: rename inlier_points to filteredFeatures or something
+        vector<vector<Point2d> > inlier_points =  cvHelpers::filterPoints(matcher, kpLeft, descriptorLeft, kpRight, descriptorRight);
+        cvHelpers::get3DPoints(inlier_points.at(0), inlier_points.at(1), currPosition, currRotation);
+        
         if( tParser.showStereoImages() == 27)
         {
             break;
