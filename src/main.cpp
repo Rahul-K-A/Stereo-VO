@@ -41,6 +41,8 @@ int main(int argc, char** argv)
     Ptr<SURF> surf = SURF::create();
     Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
     Mat LGImage, RGImage;
+    vector< vector<Point2f> > filtered_points;
+    vector<Point2f> filtered_pointsLeft, filtered_pointsRight;
     while( tParser.getIter() <= 1800)
     {
         tParser.getNextStereoImages();
@@ -48,13 +50,10 @@ int main(int argc, char** argv)
         cvtColor(tParser.getRImage(), RGImage, COLOR_BGRA2GRAY);
         vector<KeyPoint> kpLeft,kpRight;
         Mat descriptorLeft, descriptorRight;
-        cout<<"1\n";
         cvHelpers::getFeatures(surf, LGImage, kpLeft, descriptorLeft );
-        cout<<"1\n";
         cvHelpers::getFeatures(surf, RGImage, kpRight, descriptorRight );
-        cout<<"1\n";
         cvHelpers::filterPoints(matcher, kpLeft, descriptorLeft, kpRight, descriptorRight);
-        cout<<"1\n";
+
         if( tParser.showStereoImages() == 27)
         {
             break;
