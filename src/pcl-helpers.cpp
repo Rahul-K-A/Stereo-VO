@@ -48,7 +48,6 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclHelpers::Vec3DToPointCloudXYZRGB(vecto
     vector<int> indices;
     point_cloud_ptr->is_dense = false;
     pcl::removeNaNFromPointCloud(*point_cloud_ptr,*point_cloud_ptr_filtered, indices);
-    point_cloud_ptr.reset();
     return point_cloud_ptr_filtered;
 }
 
@@ -72,8 +71,9 @@ cv::Mat pclHelpers::performICP()
     pcl::PointCloud<pcl::PointXYZRGB> Final;
     icp.align(Final);
     Eigen::Matrix4f finalTransform = icp.getFinalTransformation();
+    Eigen::Matrix4d finalTd = finalTransform.cast <double> ();
     cv:: Mat finalT;
-    cv::eigen2cv(finalTransform, finalT);
+    cv::eigen2cv(finalTd, finalT);
     cout << finalT << endl;
     *combinedPC += Final;
     return finalT;
