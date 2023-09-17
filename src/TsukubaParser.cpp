@@ -14,7 +14,7 @@ TsukubaParser::TsukubaParser(string TsukubaPath): imgDirPath(TsukubaPath), iter(
 
 void TsukubaParser::getNextStereoImages()
 {
-    assert(iter <= 1800);
+    assert(iter <= NTSD_DB_SIZE);
     snprintf(LNameBuff, NAME_BUF_SIZE-1 ,"L_%05d.png",iter);
     snprintf(RNameBuff, NAME_BUF_SIZE-1 ,"R_%05d.png",iter);
     LFullPath = imgDirPath + string(LNameBuff);

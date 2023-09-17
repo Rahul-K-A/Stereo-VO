@@ -1,7 +1,7 @@
 #ifndef TSUKUBA_PARSER_H
 #define TSUKUBA_PARSES_H
 #include "common-includes.h"
-#define NTSD_DB_SIZE 1800;
+#define NTSD_DB_SIZE 1800
 #define NAME_BUF_SIZE 13
 
 class TsukubaParser{
