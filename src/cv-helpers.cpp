@@ -19,7 +19,7 @@ void cvHelpers::getFeatures( Ptr<SURF> surf, Mat image, vector<cv::KeyPoint>& ke
 /// @param keyPoints2 Second input keypoints
 /// @param descriptor2 Second input descriptor
 /// @return vector of Point2d vectors with size 2, corresponsing to the 2 pairs of input data
-vector< vector<Point2d> > cvHelpers::filterPoints(Ptr<DescriptorMatcher>& matcher, vector<KeyPoint> keyPoints1, Mat& descriptor1, vector<KeyPoint> keyPoints2, Mat& descriptor2 )
+vector< vector<Point2f> > cvHelpers::filterPoints(Ptr<DescriptorMatcher>& matcher, vector<KeyPoint> keyPoints1, Mat& descriptor1, vector<KeyPoint> keyPoints2, Mat& descriptor2 )
 {
     //cv::BFMatcher* matcher = new cv::BFMatcher(cv::NORM_L2, false); 
 
@@ -71,15 +71,15 @@ vector< vector<Point2d> > cvHelpers::filterPoints(Ptr<DescriptorMatcher>& matche
         }
     }
 
-    vector< vector<Point2d> > results;
-    results.push_back(triangulation_points1);
-    results.push_back(triangulation_points2);
+    vector< vector<Point2f> > results;
+    results.push_back(inlier_match_points1);
+    results.push_back(inlier_match_points2);
     return results;
 }
 
 
 
-vector<Point3d> cvHelpers::get3DPoints(vector<Point2d> triangulation_points1, vector<Point2d> triangulation_points2, Mat& currentPos, Mat& currentRot)
+vector<Point3d> cvHelpers::get3DPoints(vector<Point2f> triangulation_points1, vector<Point2f> triangulation_points2, Mat& currentPos, Mat& currentRot)
 {
 
     Mat RtLeft = cvHelpers::convertTo4x4Pose(currentRot, currentPos);
@@ -151,6 +151,24 @@ Mat cvHelpers::convertTo4x4Pose(Mat rotation, Mat position)
     output.at<double>(2,3) = position.at<double>(0,2);
     output.at<double>(3,3) = (double)1.f;
     return output;
+}
+
+
+void cvHelpers::decompose4x4Pose(Mat pose, Mat& outRotation, Mat& outPosition)
+{
+    cout<<"decompose"<<endl;
+    for(uint8_t row = 0; row < 3; row++)
+    {
+        for(uint8_t col = 0; col < 3; col++)
+        {
+            outRotation.at<double>(row, col) = (double) pose.at<double>(row,col);
+        }
+
+    }
+
+    outPosition.at<double>(0,0) = (double) pose.at<double>(0,3);
+    outPosition.at<double>(0,1) = (double) pose.at<double>(1,3) ;
+    outPosition.at<double>(0,2) = (double) pose.at<double>(2,3) ;
 }
 
 
