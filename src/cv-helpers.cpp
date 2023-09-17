@@ -79,22 +79,35 @@ vector< vector<Point2d> > cvHelpers::filterPoints(Ptr<DescriptorMatcher>& matche
 
 
 
-Mat cvHelpers::get3DPoints(vector<Point2d> triangulation_points1, vector<Point2d> triangulation_points2, Mat& currentPos, Mat& currentRot)
+vector<Point3d> cvHelpers::get3DPoints(vector<Point2d> triangulation_points1, vector<Point2d> triangulation_points2, Mat& currentPos, Mat& currentRot)
 {
-    Mat Rt0 = cvHelpers::convertTo4x4Pose(currentRot, currentPos);
-    cv::Mat Rt1 = Rt0 * TsukubaParser::getRightCamRelativeTransform();
-    Rt0.pop_back();
-    Rt1.pop_back();
+
+    Mat RtLeft = cvHelpers::convertTo4x4Pose(currentRot, currentPos);
+    // Right cam pose = left cam pose * relative transform
+    cv::Mat RtRight = RtLeft * TsukubaParser::getRightCamRelativeTransform();
+    RtLeft.pop_back();
+    RtRight.pop_back();
     cv::Mat homogenised_3d_points;
     cv::Mat Kd = TsukubaParser::getCameraMatrix();
-    cv::triangulatePoints(Kd * Rt0, Kd * Rt1, triangulation_points1, triangulation_points2,  homogenised_3d_points);
+
+    //Get 3d points wrt Left camera (not scaled afaik)
+    cv::triangulatePoints(Kd * RtLeft, Kd * RtRight, triangulation_points1, triangulation_points2,  homogenised_3d_points);
+
+    vector<Point3d> points_3d;
     for(uint16_t i = 0; i < homogenised_3d_points.cols; i++)
     {
         Mat currPoint3d =  homogenised_3d_points.col(i);
         currPoint3d /= currPoint3d.at<double>(3, 0);
+        Point3d p(
+            currPoint3d.at<double>(0, 0),
+            currPoint3d.at<double>(1, 0),
+            currPoint3d.at<double>(2, 0)
+        );
+        points_3d.push_back(p);
+
     }
     assert(homogenised_3d_points.cols == triangulation_points1.size());
-    return homogenised_3d_points;
+    return points_3d;
 }
 
 
