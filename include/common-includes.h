@@ -7,6 +7,7 @@
 #include <opencv4/opencv2/imgproc/imgproc.hpp>
 #include <opencv4/opencv2/ximgproc/disparity_filter.hpp>
 #include <opencv4/opencv2/xfeatures2d.hpp>
+#include <opencv4/opencv2/core/eigen.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <iostream>
