@@ -3,7 +3,9 @@
 
 #include "common-includes.h"
 
-using namespace ximgproc;
+using namespace cv;
+using namespace xfeatures2d;
+using namespace std;
 
 namespace cvHelpers{
     void getFeatures( Ptr<SURF> surf, Mat image, vector<cv::KeyPoint>& keyPoints, Mat& descriptor  );

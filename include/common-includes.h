@@ -15,7 +15,4 @@
 #include <cstdio>
 #include <string>
 #include <vector>
-using namespace std;
-using namespace cv;
-using namespace xfeatures2d;
 #endif //COMMON_INCLUDES_H
