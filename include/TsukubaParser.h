@@ -5,7 +5,6 @@
 #define NAME_BUF_SIZE 13
 
 using namespace cv;
-using namespace std;
 class TsukubaParser{
     public:
         TsukubaParser(string TsukubaPath);

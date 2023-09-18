@@ -1,6 +1,10 @@
 #include "cv-helpers.h"
 #include "TsukubaParser.h"
 
+using namespace cv;
+using namespace xfeatures2d;
+using namespace std;
+
 /// @brief Get keypoints and descriptors from a given image using SURF
 /// @param surf Pointer to SURF detector
 /// @param image Input image
@@ -111,6 +115,7 @@ vector<Point3d> cvHelpers::get3DPoints(vector<Point2f> triangulation_points1, ve
         points_3d.push_back(p);
 
     }
+    //Output 3d points must have same number of elements as the input triangulated points
     assert(homogenised_3d_points.cols == triangulation_points1.size());
     return points_3d;
 }

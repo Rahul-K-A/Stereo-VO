@@ -3,13 +3,12 @@
 #include "common-includes.h"
 
 
-using namespace std;
-
 namespace pclHelpers{
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr Vec3DToPointCloudXYZRGB(vector<cv::Point3d> points_3d, vector<cv::Point2f> image_coordinates, cv::Mat colorImage);
     void registerFirstPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr first_pc);
     void registerCurrentPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr current_pc);
-    cv::Mat performICP();
+    void performICP(cv::Mat currentRot, cv::Mat currentPos, cv::Mat& outPos, cv::Mat& outRot);
+
 
 }
 #endif //PCL_HELPERS_H
