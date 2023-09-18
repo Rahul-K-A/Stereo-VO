@@ -23,7 +23,7 @@ void cvHelpers::getFeatures( Ptr<SURF> surf, Mat image, vector<cv::KeyPoint>& ke
 /// @param keyPoints2 Second input keypoints
 /// @param descriptor2 Second input descriptor
 /// @return vector of Point2d vectors with size 2, corresponsing to the 2 pairs of input data
-vector< vector<Point2f> > cvHelpers::filterPoints(Ptr<DescriptorMatcher>& matcher, vector<KeyPoint> keyPoints1, Mat& descriptor1, vector<KeyPoint> keyPoints2, Mat& descriptor2 )
+vector< vector<Point2d> > cvHelpers::filterPoints(cv::BFMatcher* matcher, vector<KeyPoint> keyPoints1, Mat& descriptor1, vector<KeyPoint> keyPoints2, Mat& descriptor2 )
 {
     //cv::BFMatcher* matcher = new cv::BFMatcher(cv::NORM_L2, false); 
 
@@ -51,8 +51,7 @@ vector< vector<Point2f> > cvHelpers::filterPoints(Ptr<DescriptorMatcher>& matche
         }
     }
     //TODO: Make this easier to understand
-    Mat E;
-    Mat mask;
+    Mat E,R,t,mask;
     //Find essential matrix and use the output mask to calculate inliers
     E = cv::findEssentialMat(selected_points1, selected_points2, TsukubaParser::getCameraMatrix().at<double>(0,0),
                            // cv::Point2f(0.f, 0.f),
@@ -65,8 +64,16 @@ vector< vector<Point2f> > cvHelpers::filterPoints(Ptr<DescriptorMatcher>& matche
             inlier_match_points2.push_back(selected_points2[i]);
         }
     }
+    mask.release();
+    cv::recoverPose(E, 
+                  inlier_match_points1,
+                  inlier_match_points2, 
+                  R, t, TsukubaParser::getCameraMatrix().at<double>(0,0), 
+                  // cv::Point2f(0, 0),
+                  cv::Point2d(240.f, 320.f),
+                  mask);
 
-    //Store the inlier points as double values               
+    //Do second round of filtering              
     vector<cv::Point2d> triangulation_points1, triangulation_points2;
     for(int i = 0; i < mask.rows; i++) {
         if(mask.at<unsigned char>(i)){
@@ -75,9 +82,9 @@ vector< vector<Point2f> > cvHelpers::filterPoints(Ptr<DescriptorMatcher>& matche
         }
     }
 
-    vector< vector<Point2f> > results;
-    results.push_back(inlier_match_points1);
-    results.push_back(inlier_match_points2);
+    vector< vector<Point2d> > results;
+    results.push_back(triangulation_points1);
+    results.push_back(triangulation_points2);
     return results;
 }
 
@@ -88,7 +95,7 @@ vector< vector<Point2f> > cvHelpers::filterPoints(Ptr<DescriptorMatcher>& matche
 /// @param currentPos Current Left cam position
 /// @param currentRot Current Left cam rotation
 /// @return Vector contanining homogenised 3D world points
-vector<Point3d> cvHelpers::get3DPoints(vector<Point2f> triangulation_points1, vector<Point2f> triangulation_points2, Mat& currentPos, Mat& currentRot)
+vector<Point3d> cvHelpers::get3DPoints(vector<Point2d> triangulation_points1, vector<Point2d> triangulation_points2, Mat& currentPos, Mat& currentRot)
 {
 
     Mat RtLeft = cvHelpers::convertTo4x4Pose(currentRot, currentPos);

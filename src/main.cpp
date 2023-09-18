@@ -16,15 +16,12 @@ using namespace xfeatures2d;
 //Left cam -> origin of coordinate system
 Mat currPosition = (Mat1d(1, 3) << 0, 0, 0);
 Mat currRotation = Mat::eye(3, 3, CV_64F);
+Mat LGImage, RGImage;
 
-//Right cam
-Mat relativeRCamPosition = (Mat1d(1,3) << 10, 0, 0);
-Mat relativeRCamRotation = Mat::eye(3,3,CV_64F);
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr myPC;
 
-void processFirstStereo(TsukubaParser& tParser, Ptr<SURF>& surf, Ptr<DescriptorMatcher>& matcher)
+void processFirstStereo(TsukubaParser& tParser, Ptr<SURF>& surf, cv::BFMatcher* matcher)
 {
-    Mat LGImage, RGImage;
     tParser.getNextStereoImages();
     cvtColor(tParser.getLImage(), LGImage, COLOR_BGRA2GRAY);
     cvtColor(tParser.getRImage(), RGImage, COLOR_BGRA2GRAY);
@@ -34,7 +31,7 @@ void processFirstStereo(TsukubaParser& tParser, Ptr<SURF>& surf, Ptr<DescriptorM
     cvHelpers::getFeatures(surf, LGImage, kpLeft, descriptorLeft );
     cvHelpers::getFeatures(surf, RGImage, kpRight, descriptorRight );
     // TODO: rename inlier_points to filteredFeatures or something
-    vector<vector<Point2f> > inlier_points =  cvHelpers::filterPoints(matcher, kpLeft, descriptorLeft, kpRight, descriptorRight);
+    vector<vector<Point2d> > inlier_points =  cvHelpers::filterPoints(matcher, kpLeft, descriptorLeft, kpRight, descriptorRight);
     vector<Point3d> points_3d = cvHelpers::get3DPoints(inlier_points.at(0), inlier_points.at(1), currPosition, currRotation);
     myPC = pclHelpers::Vec3DToPointCloudXYZRGB(points_3d, inlier_points.at(1), tParser.getLImage());
     pclHelpers::registerFirstPointCloud( myPC );
@@ -45,16 +42,14 @@ int main(int argc, char** argv)
     if (argc == 1 || argc > 2 )
     {
         cout << "Please run the program as NTSD-VisualOdometry <path-to-NTSD-root-directory>" << endl;
-        assert(0);
     }
     string DBPath = argv[1];
     TsukubaParser tParser(DBPath);
 
     Ptr<SURF> surf = SURF::create();
-    Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
-    Mat LGImage, RGImage;
-    vector< vector<Point2f> > filtered_points;
-    vector<Point2f> filtered_pointsLeft, filtered_pointsRight;
+    cv::BFMatcher* matcher = new cv::BFMatcher(cv::NORM_L2, false); 
+    vector< vector<Point2d> > filtered_points;
+    vector<Point2d> filtered_pointsLeft, filtered_pointsRight;
     Mat outPos = (Mat1d(1, 3) << 0, 0, 0);
     Mat outRot = Mat::eye(3, 3, CV_64F);
     Mat descriptorLeft, descriptorRight;
@@ -74,20 +69,16 @@ int main(int argc, char** argv)
         cvHelpers::getFeatures(surf, LGImage, kpLeft, descriptorLeft );
         cvHelpers::getFeatures(surf, RGImage, kpRight, descriptorRight );
         // TODO: rename inlier_points to filteredFeatures or something
-        vector<vector<Point2f> > inlier_points =  cvHelpers::filterPoints(matcher, kpLeft, descriptorLeft, kpRight, descriptorRight);
+        vector<vector<Point2d> > inlier_points =  cvHelpers::filterPoints(matcher, kpLeft, descriptorLeft, kpRight, descriptorRight);
         vector<Point3d> points_3d = cvHelpers::get3DPoints(inlier_points.at(0), inlier_points.at(1), currPosition, currRotation);
         //Get point cloud
-        myPC = pclHelpers::Vec3DToPointCloudXYZRGB(points_3d, inlier_points.at(1), tParser.getLImage());
+        myPC = pclHelpers::Vec3DToPointCloudXYZRGB(points_3d, inlier_points.at(0), tParser.getLImage());
         //Do ICP
         pclHelpers::registerCurrentPointCloud(myPC);
         //Apply transform to currentPos and currentRot
-        Mat transform = pclHelpers::performICP();
-
-        Mat currPose = cvHelpers::convertTo4x4Pose(currRotation,currPosition);
-        Mat finalPose = currPose * transform;
-        cvHelpers::decompose4x4Pose(finalPose, outPos, outRot);
+        pclHelpers::performICP(currRotation, currPosition, outPos, outRot);
+        currRotation = outRot.clone();
         currPosition = outPos.clone();
-        currRotation = outRot.clone(); 
         if( tParser.showStereoImages() == 27)
         {
             break;
