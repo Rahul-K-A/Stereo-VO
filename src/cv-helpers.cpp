@@ -78,7 +78,12 @@ vector< vector<Point2f> > cvHelpers::filterPoints(Ptr<DescriptorMatcher>& matche
 }
 
 
-
+/// @brief Performs 3D Point triangulation and returns a vector of 3D world points
+/// @param triangulation_points1 Left camera points
+/// @param triangulation_points2 Right camera points
+/// @param currentPos Current Left cam position
+/// @param currentRot Current Left cam rotation
+/// @return Vector contanining homogenised 3D world points
 vector<Point3d> cvHelpers::get3DPoints(vector<Point2f> triangulation_points1, vector<Point2f> triangulation_points2, Mat& currentPos, Mat& currentRot)
 {
 
@@ -131,9 +136,9 @@ Mat cvHelpers::convertTo3x4Pose(Mat rotation, Mat position){
     return output;
 }
 
-/// @brief Converts rotation and positon matrices into a single 4x4 pose matrix 
-/// @param rotation input rotation matrix
-/// @param position input position matrix
+/// @brief Converts rotation and positon matrices into a single 4x4 64-bit floating point pose matrix 
+/// @param rotation input rotation matrix (type: double)
+/// @param position input position matrix (type: double)
 /// @return output 4x4 matrix 
 Mat cvHelpers::convertTo4x4Pose(Mat rotation, Mat position)
 {
@@ -154,6 +159,11 @@ Mat cvHelpers::convertTo4x4Pose(Mat rotation, Mat position)
 }
 
 
+
+/// @brief Decompose a 64-bit floating point 4x4matrix into 64-bit rotation and translation matrices
+/// @param pose Input double-type matrix
+/// @param outRotation Reference to output double-type Rotation matrix
+/// @param outPosition Reference to output double-type Translation Matrix
 void cvHelpers::decompose4x4Pose(Mat pose, Mat& outRotation, Mat& outPosition)
 {
     cout<<"decompose"<<endl;

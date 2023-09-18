@@ -1,6 +1,7 @@
 #include "pcl-helpers.h"
 #include <pcl/registration/icp.h>
 #include <pcl/filters/filter.h>
+#include <pcl/io/pcd_io.h>
 
 static pcl::PointCloud<pcl::PointXYZRGB>::Ptr currentPC = nullptr;
 static pcl::PointCloud<pcl::PointXYZRGB>::Ptr previousPC  = nullptr;
@@ -51,18 +52,24 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclHelpers::Vec3DToPointCloudXYZRGB(vecto
     return point_cloud_ptr_filtered;
 }
 
+/// @brief Register the first point cloud for setting up ICP
+/// @param first_pc Input point cloud
 void pclHelpers::registerFirstPointCloud( pcl::PointCloud<pcl::PointXYZRGB>::Ptr first_pc )
 {
     previousPC = first_pc;
     currentPC = first_pc;
 }
 
+/// @brief Register a point cloud for setting up ICP
+/// @param current_pc Input point cloud
 void pclHelpers::registerCurrentPointCloud( pcl::PointCloud<pcl::PointXYZRGB>::Ptr current_pc )
 {
     previousPC = currentPC;
     currentPC = current_pc;
 }
 
+/// @brief Performs iterative closest point with the two most recently registered point clouds
+/// @return OpenCV 4x4 pose matrix of type doubke
 cv::Mat pclHelpers::performICP()
 {
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
@@ -76,5 +83,6 @@ cv::Mat pclHelpers::performICP()
     cv::eigen2cv(finalTd, finalT);
     cout << finalT << endl;
     *combinedPC += Final;
+    pcl::io::savePCDFileASCII("final.pcd", Final);
     return finalT;
 }
