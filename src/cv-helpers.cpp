@@ -212,6 +212,35 @@ vector< vector<Point2d> > cvHelpers::filterPoints(cv::BFMatcher* matcher, vector
 }
 #endif
 
+/// @brief Generate 3D World coordinate points from disparity and feature points
+/// @param disparityMap 16-bit signed disparity image
+/// @param imageCoords floating point image coords
+/// @return Vector containing world coordinates of features
+vector<Point3f> imgToWorldCoords(Mat disparityMap, vector<Point2f> imageCoords)
+{
+    vector<Point3f> outVecDepth;
+    int16_t currDisp = 0;
+    int16_t prevDisp = 0;
+    Point3f depthPoint;
+    for(Point2f point : imageCoords )
+    {
+        currDisp = disparityMap.at<int16_t>(point);
+        if(currDisp){
+            prevDisp = currDisp;
+        }
+        else{
+            currDisp = prevDisp;
+        }
+        depthPoint.z = (1.f * FX * BASELINE)/ currDisp;
+        depthPoint.x = (point.x - CX) * (depthPoint.z / FX);
+        depthPoint.y = (point.y - CY) * (depthPoint.z / FY);
+        outVecDepth.push_back(depthPoint);
+    }
+    return outVecDepth;
+}
+
+
+
 /// @brief Performs 3D Point triangulation and returns a vector of 3D world points
 /// @param triangulation_points1 Left camera points
 /// @param triangulation_points2 Right camera points

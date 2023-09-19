@@ -3,12 +3,6 @@
 #include "cv-helpers.h"
 #include "TsukubaParser.h"
 
-
-#define FX 615
-#define FY 615
-#define CX 320
-#define CY 240
-
 using namespace std;
 using namespace cv;
 using namespace xfeatures2d;
