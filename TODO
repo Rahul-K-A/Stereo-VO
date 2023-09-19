@@ -1,0 +1,7 @@
+Plan:
+1. Take current frame
+2. Generate depth image
+3. Take previous frame
+4. Find correspondance
+5. Generate point cloud for correspondance points
+6. Do ICP using PCL
