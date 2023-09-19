@@ -18,6 +18,58 @@ bool isValidP3d(cv::Point3d point)
     return valid;
 };
 
+bool isValidP3f(cv::Point3f point)
+{
+    bool valid = true;
+    valid = valid && !isnan(point.x) && !isinf(point.x);
+    valid = valid && !isnan(point.y) && !isinf(point.y);
+    valid = valid && !isnan(point.z) && !isinf(point.z);
+    return valid;
+};
+
+/// @brief Converts a vector of cv::Point3f to XYZRGB Point cloud
+/// @param points_3f Input vector of cv::Point3f
+/// @param image_coordinates Input cv::Point2d image coordinates corresponding to points_3d
+/// @param colorImage Input BGR formatted cv::Mat used for sampling color
+/// @return Pointer to point cloud
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclHelpers::Vec3DToPointCloudXYZRGB(vector<cv::Point3f> points_3f, vector<cv::Point2f> image_coordinates, cv::Mat colorImage)
+{
+    //Convert Point3D into PointXYZRGB
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud_ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud_ptr_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
+    for(uint16_t i = 0; i < points_3f.size(); i++)
+    {
+        if(!isValidP3f(points_3f[i]))
+        {
+            cout<<" Rejected point at " << i << " !\n";
+            continue;
+        }
+        pcl::PointXYZRGB basic_point;
+        basic_point.x = points_3f[i].x;
+        basic_point.y = points_3f[i].y;
+        basic_point.z = points_3f[i].z;
+        cv::Point2f myPoint(image_coordinates[i].x, image_coordinates[i].y);
+        cv::Vec4b color = colorImage.at<cv::Vec4b>(image_coordinates[i]);
+        basic_point.b = color[0];
+        basic_point.g = color[1];
+        basic_point.r = color[2];
+        //cout<<"Basic point: "<< basic_point << endl; 
+        point_cloud_ptr->points.push_back(basic_point);
+    }
+
+    point_cloud_ptr->width = (int)point_cloud_ptr->points.size();
+    point_cloud_ptr->height = 1;
+    //Since the point cloud is sparse, remove all the NaN values automatically set by PCL
+    vector<int> indices;
+    point_cloud_ptr->is_dense = false;
+    pcl::removeNaNFromPointCloud(*point_cloud_ptr,*point_cloud_ptr_filtered, indices);
+    return point_cloud_ptr_filtered;
+}
+
+
+
+
+
 /// @brief Converts a vector of cv::Point3d to XYZRGB Point cloud
 /// @param points_3d Input vector of cv::Point3d
 /// @param image_coordinates Input cv::Point2d image coordinates corresponding to points_3d
