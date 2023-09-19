@@ -12,6 +12,7 @@
 using namespace std;
 using namespace cv;
 using namespace xfeatures2d;
+using namespace ximgproc;
 
 //Left cam -> origin of coordinate system
 Mat currPosition = (Mat1d(1, 3) << 0, 0, 0);
@@ -20,7 +21,7 @@ Mat LGImage, RGImage;
 
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr myPC;
 
-void processFirstStereo(TsukubaParser& tParser, Ptr<SURF>& surf, cv::BFMatcher* matcher)
+void processFirstStereo(TsukubaParser& tParser, Ptr<SURF>& surf, cv::BFMatcher* correspondance_matcher)
 {
     tParser.getNextStereoImages();
     cvtColor(tParser.getLImage(), LGImage, COLOR_BGRA2GRAY);
@@ -31,7 +32,7 @@ void processFirstStereo(TsukubaParser& tParser, Ptr<SURF>& surf, cv::BFMatcher* 
     cvHelpers::getFeatures(surf, LGImage, kpLeft, descriptorLeft );
     cvHelpers::getFeatures(surf, RGImage, kpRight, descriptorRight );
     // TODO: rename inlier_points to filteredFeatures or something
-    vector<vector<Point2d> > inlier_points =  cvHelpers::filterPoints(matcher, kpLeft, descriptorLeft, kpRight, descriptorRight);
+    vector<vector<Point2d> > inlier_points =  cvHelpers::filterPoints(correspondance_matcher, kpLeft, descriptorLeft, kpRight, descriptorRight);
     vector<Point3d> points_3d = cvHelpers::get3DPoints(inlier_points.at(0), inlier_points.at(1), currPosition, currRotation);
     myPC = pclHelpers::Vec3DToPointCloudXYZRGB(points_3d, inlier_points.at(1), tParser.getLImage());
     pclHelpers::registerFirstPointCloud( myPC );
@@ -46,17 +47,24 @@ int main(int argc, char** argv)
     string DBPath = argv[1];
     TsukubaParser tParser(DBPath);
 
-    Ptr<SURF> surf = SURF::create();
-    cv::BFMatcher* matcher = new cv::BFMatcher(cv::NORM_L2, false); 
+    //Algorithm pointers
+    Ptr<SURF> surf = nullptr;
+    Ptr<BFMatcher> correspondance_matcher = nullptr; 
+    Ptr<StereoSGBM> left_matcher = nullptr;
+    Ptr<StereoMatcher> right_matcher = nullptr;
+    Ptr<DisparityWLSFilter> wls_filter = nullptr;
+    cvHelpers::createFilters(surf, correspondance_matcher, left_matcher, right_matcher, wls_filter );
+    //Vectors to store points
     vector< vector<Point2d> > filtered_points;
     vector<Point2d> filtered_pointsLeft, filtered_pointsRight;
+    //Output position and rotation
     Mat outPos = (Mat1d(1, 3) << 0, 0, 0);
     Mat outRot = Mat::eye(3, 3, CV_64F);
     Mat descriptorLeft, descriptorRight;
 
     //TODO: add "Process first stereo image here". We have to set first image as frame of reference for all others
     cout<< "ProcessFirstStereo\n";
-    processFirstStereo(tParser, surf, matcher);
+    processFirstStereo(tParser, surf, correspondance_matcher);
     cout<< "Loop\n";
     while( tParser.getIter() <= NTSD_DB_SIZE)
     {
@@ -69,7 +77,7 @@ int main(int argc, char** argv)
         cvHelpers::getFeatures(surf, LGImage, kpLeft, descriptorLeft );
         cvHelpers::getFeatures(surf, RGImage, kpRight, descriptorRight );
         // TODO: rename inlier_points to filteredFeatures or something
-        vector<vector<Point2d> > inlier_points =  cvHelpers::filterPoints(matcher, kpLeft, descriptorLeft, kpRight, descriptorRight);
+        vector<vector<Point2d> > inlier_points =  cvHelpers::filterPoints(correspondance_matcher, kpLeft, descriptorLeft, kpRight, descriptorRight);
         vector<Point3d> points_3d = cvHelpers::get3DPoints(inlier_points.at(0), inlier_points.at(1), currPosition, currRotation);
         //Get point cloud
         myPC = pclHelpers::Vec3DToPointCloudXYZRGB(points_3d, inlier_points.at(0), tParser.getLImage());

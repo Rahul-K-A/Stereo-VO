@@ -3,7 +3,60 @@
 
 using namespace cv;
 using namespace xfeatures2d;
+using namespace ximgproc;
 using namespace std;
+
+
+/// @brief Allocate memory and initialise all the algorithms used
+/// @param surf Reference to surf object pointer
+/// @param correspondence_matcher Reference to BFMatcher object pointer
+/// @param left_matcher Reference to StereoSGBM object pointer
+/// @param right_matcher Reference to StereoMatcher object pointer
+/// @param wls_filter Reference to WLSDisparityFiler object pointer
+void cvHelpers::createFilters( Ptr<SURF>& surf , Ptr<BFMatcher>& correspondence_matcher, Ptr<StereoSGBM>& left_matcher, Ptr<StereoMatcher>& right_matcher, Ptr<DisparityWLSFilter>& wls_filter )
+{
+
+    surf = SURF::create();
+    correspondence_matcher = BFMatcher::create(NORM_L2, false);
+    //Empirical parameters based on messing around
+    left_matcher  = StereoSGBM::create(0, 96, 5);
+    left_matcher->setMinDisparity(0);
+    left_matcher->setNumDisparities(160);
+    left_matcher->setSpeckleRange(7);
+    left_matcher->setP1(200);
+    left_matcher->setP2(500);
+    left_matcher->setPreFilterCap(1);
+    left_matcher->setMode(StereoSGBM::MODE_SGBM_3WAY);
+    left_matcher->setUniquenessRatio(0);
+    wls_filter = ximgproc::createDisparityWLSFilter(left_matcher);
+    right_matcher = ximgproc::createRightMatcher(left_matcher);
+    wls_filter->setSigmaColor(2.f);
+}
+
+
+/// @brief Given two images, this function generates a signed 16-bit disparity map
+/// @param imLeft Left view image
+/// @param imRight Right view image 
+/// @param outDisparity output 16-bit Disparity view
+/// @param left_matcher Pointer to SGBM matcher
+/// @param right_matcher Pointer to corresponding right matcher
+/// @param wls_filter Pointer to WLS filter 
+/// @return ROI of disparity image
+Rect cvHelpers::generateDisparityMap(Mat& imLeft, Mat& imRight, Mat& outDisparity, Ptr<StereoSGBM>& left_matcher,  Ptr<StereoMatcher>& right_matcher,  Ptr<DisparityWLSFilter>& wls_filter)
+{
+    Mat gLeft, gRight;
+    Mat lDisparity, rDisparity;
+    Mat filteredDisparity;
+    cvtColor(imLeft, gLeft, COLOR_BGRA2GRAY);
+    cvtColor(imRight, gRight, COLOR_BGRA2GRAY);
+    left_matcher->compute(gLeft, gRight,lDisparity);
+    right_matcher->compute(gRight, gLeft, rDisparity);
+    wls_filter->filter(lDisparity, gLeft, filteredDisparity, rDisparity, Rect(), gRight);
+    Rect ROI = wls_filter->getROI();
+    filteredDisparity = filteredDisparity(ROI);
+    outDisparity = filteredDisparity.clone();
+    return ROI;
+}
 
 /// @brief Get keypoints and descriptors from a given image using SURF
 /// @param surf Pointer to SURF detector
@@ -15,7 +68,77 @@ void cvHelpers::getFeatures( Ptr<SURF> surf, Mat image, vector<cv::KeyPoint>& ke
     surf->detectAndCompute(image, noArray(), keyPoints, descriptor);
 }
 
+/// @brief Given a sequence of 2 image, find the common features between them
+/// @param correspondance_matcher 
+/// @param keyPoints1 
+/// @param descriptor1 
+/// @param keyPoints2 
+/// @param descriptor2 
+/// @return Vector of vectors containing image coordinates of the features in the current and previous images respectively
+vector< vector<Point2f> > cvHelpers::findCorrespondance(Ptr<BFMatcher> correspondance_matcher, vector<KeyPoint> keyPoints1, Mat& descriptor1, vector<KeyPoint> keyPoints2, Mat& descriptor2 )
+{
+    //Image 1 to 2 correspondance, and Image 2 to 1 correspondance;
+    vector< vector<cv::DMatch> > knn_matches_12, knn_matches_21;
+    
+    //Find matches
+    correspondance_matcher->knnMatch( descriptor1, descriptor2, knn_matches_12, 2 );
+    correspondance_matcher->knnMatch( descriptor2, descriptor1, knn_matches_21, 2 );
 
+    //Perform lowes ratio test
+    const double ratio = 0.8;
+    vector<cv::Point2f> selected_points1, selected_points2;
+    
+    //Do lowes ratio test for KNN matches and only accept point if both tests past
+    for(int i = 0; i < knn_matches_12.size(); i++) {
+        if( knn_matches_12[i][0].distance/knn_matches_12[i][1].distance < ratio and knn_matches_21[knn_matches_12[i][0].trainIdx][0].distance / knn_matches_21[knn_matches_12[i][0].trainIdx][1].distance < ratio ) 
+        {
+            // If both tests pass, verify that the KNN matches are actually using the same keypoints
+            if(knn_matches_21[knn_matches_12[i][0].trainIdx][0].trainIdx == knn_matches_12[i][0].queryIdx) 
+            {
+                selected_points1.push_back(keyPoints1[knn_matches_12[i][0].queryIdx].pt);
+                selected_points2.push_back(keyPoints2[knn_matches_21[knn_matches_12[i][0].trainIdx][0].queryIdx].pt);
+            }
+        }
+    }
+    //TODO: Make this easier to understand
+    Mat E,R,t,mask;
+    //Find essential matrix and use the output mask to calculate inliers
+    E = cv::findEssentialMat(selected_points1, selected_points2, TsukubaParser::getCameraMatrix().at<double>(0,0),
+                           // cv::Point2f(0.f, 0.f),
+                           cv::Point2d(240.f, 320.f),
+                           cv::RANSAC, 0.999, 1.0, mask);
+    vector<cv::Point2f> inlier_match_points1, inlier_match_points2;
+    for(int i = 0; i < mask.rows; i++) {
+        if(mask.at<unsigned char>(i)){
+            inlier_match_points1.push_back(selected_points1[i]);
+            inlier_match_points2.push_back(selected_points2[i]);
+        }
+    }
+    mask.release();
+    cv::recoverPose(E, 
+                  inlier_match_points1,
+                  inlier_match_points2, 
+                  R, t, TsukubaParser::getCameraMatrix().at<double>(0,0), 
+                  // cv::Point2f(0, 0),
+                  cv::Point2d(240.f, 320.f),
+                  mask);
+
+    //Do second round of filtering              
+    vector<cv::Point2f> triangulation_points1, triangulation_points2;
+    for(int i = 0; i < mask.rows; i++) {
+        if(mask.at<unsigned char>(i)){
+            triangulation_points1.push_back (cv::Point2f( inlier_match_points1[i].x, inlier_match_points1[i].y));
+            triangulation_points2.push_back(cv::Point2f( inlier_match_points2[i].x, inlier_match_points2[i].y));
+        }
+    }
+
+    vector< vector<Point2f> > results;
+    results.push_back(triangulation_points1);
+    results.push_back(triangulation_points2);
+    return results;
+}
+
+#if 0
 /// @brief Given 2 pairs of keypoints and descriptors, find the most viable features that can be used for triangulation
 /// @param matcher Pointer to FLANNBASED descriptor matcher
 /// @param keyPoints1 First input keypoints
@@ -87,7 +210,7 @@ vector< vector<Point2d> > cvHelpers::filterPoints(cv::BFMatcher* matcher, vector
     results.push_back(triangulation_points2);
     return results;
 }
-
+#endif
 
 /// @brief Performs 3D Point triangulation and returns a vector of 3D world points
 /// @param triangulation_points1 Left camera points

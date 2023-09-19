@@ -86,6 +86,7 @@ void pclHelpers::registerCurrentPointCloud( pcl::PointCloud<pcl::PointXYZRGB>::P
  /// @return 
  void pclHelpers::performICP(cv::Mat currentRot, cv::Mat currentPos, cv::Mat& outPos, cv::Mat& outRot)
 {
+    #if 0
     pcl::PointCloud<pcl::PointXYZRGB> cc;
     //Set up ICP
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
@@ -120,4 +121,5 @@ void pclHelpers::registerCurrentPointCloud( pcl::PointCloud<pcl::PointXYZRGB>::P
     *combinedPC += *previousPC;
 
     pcl::io::savePCDFileASCII("final.pcd", *combinedPC);
+    #endif
 }
