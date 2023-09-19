@@ -4,6 +4,11 @@
 #define NTSD_DB_SIZE 1800
 #define NAME_BUF_SIZE 13
 
+#define FX 615
+#define FY 615
+#define CX 320
+#define CY 240
+#define BASELINE 10
 using namespace cv;
 class TsukubaParser{
     public:
@@ -14,9 +19,9 @@ class TsukubaParser{
         Mat getRImage();
         static Mat getCameraMatrix()
         {
-            return (Mat1d(3,3) << 615.f, 0.f, 320.f,         // fx, 0, cx
-                                    0.f, 615.f, 240.f,       // 0, fy, cy,
-                                    0,   0,     1 );         // 0, 0 , 1
+            return (Mat1d(3,3) <<   FX, 0.f, CX,         // fx, 0, cx
+                                    0.f, FY, CY,       // 0, fy, cy,
+                                    0,   0,   1 );         // 0, 0 , 1
         };
 
         static Mat getRightCamRelativeTransform()
