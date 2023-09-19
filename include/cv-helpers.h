@@ -17,6 +17,8 @@ namespace cvHelpers{
     vector< vector<cv::Point2d> > filterPoints(cv::BFMatcher* matcher, vector<cv::KeyPoint> keyPoints1, cv::Mat& descriptor1, vector<cv::KeyPoint> keyPoints2, cv::Mat& descriptor2 );
     #endif
     
+    vector<cv::Point3f> imgToWorldCoords(cv::Mat disparityMap, vector<cv::Point2f> imageCoords);
+
     vector<cv::Point3d> get3DPoints(vector<cv::Point2d> triangulation_points1, vector<cv::Point2d> triangulation_points2, cv::Mat& currentPos, cv::Mat& currentRot);
     
     cv::Mat convertTo3x4Pose(cv::Mat rotation, cv::Mat position);
