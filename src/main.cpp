@@ -14,22 +14,31 @@ Mat currRotation = Mat::eye(3, 3, CV_64F);
 Mat LGImage, RGImage;
 
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr myPC;
+Mat prevLeftImage;
+Mat prevDisparity;
+Mat currLeftImage;
 
-void processFirstStereo(TsukubaParser& tParser, Ptr<SURF>& surf, cv::BFMatcher* correspondance_matcher)
+//Algorithm pointers
+Ptr<SURF> surf = nullptr;
+Ptr<BFMatcher> correspondance_matcher = nullptr; 
+Ptr<StereoSGBM> left_matcher = nullptr;
+Ptr<StereoMatcher> right_matcher = nullptr;
+Ptr<DisparityWLSFilter> wls_filter = nullptr;
+Rect ROI;
+vector<KeyPoint> currentKp, prevKp;
+Mat currDesc, prevDesc;
+
+void processFirstStereo(TsukubaParser& tParser, Ptr<SURF>& surf, Ptr<BFMatcher> correspondance_matcher)
 {
     tParser.getNextStereoImages();
-    cvtColor(tParser.getLImage(), LGImage, COLOR_BGRA2GRAY);
-    cvtColor(tParser.getRImage(), RGImage, COLOR_BGRA2GRAY);
-    vector<KeyPoint> kpLeft,kpRight;
-    Mat descriptorLeft, descriptorRight;
-    //Get features
-    cvHelpers::getFeatures(surf, LGImage, kpLeft, descriptorLeft );
-    cvHelpers::getFeatures(surf, RGImage, kpRight, descriptorRight );
-    // TODO: rename inlier_points to filteredFeatures or something
-    vector<vector<Point2d> > inlier_points =  cvHelpers::filterPoints(correspondance_matcher, kpLeft, descriptorLeft, kpRight, descriptorRight);
-    vector<Point3d> points_3d = cvHelpers::get3DPoints(inlier_points.at(0), inlier_points.at(1), currPosition, currRotation);
-    myPC = pclHelpers::Vec3DToPointCloudXYZRGB(points_3d, inlier_points.at(1), tParser.getLImage());
-    pclHelpers::registerFirstPointCloud( myPC );
+    Mat lImg, rImg;
+    lImg = tParser.getLImage().clone();
+    rImg = tParser.getRImage().clone();
+
+    ROI = cvHelpers::generateDisparityMap(lImg, rImg, prevDisparity, left_matcher, right_matcher, wls_filter);
+    prevLeftImage = tParser.getLImage()(ROI);
+    currLeftImage = prevLeftImage.clone();
+    cvHelpers::getFeatures(surf, prevLeftImage, prevKp, prevDesc );
 }
 
 int main(int argc, char** argv)
@@ -41,46 +50,42 @@ int main(int argc, char** argv)
     string DBPath = argv[1];
     TsukubaParser tParser(DBPath);
 
-    //Algorithm pointers
-    Ptr<SURF> surf = nullptr;
-    Ptr<BFMatcher> correspondance_matcher = nullptr; 
-    Ptr<StereoSGBM> left_matcher = nullptr;
-    Ptr<StereoMatcher> right_matcher = nullptr;
-    Ptr<DisparityWLSFilter> wls_filter = nullptr;
     cvHelpers::createFilters(surf, correspondance_matcher, left_matcher, right_matcher, wls_filter );
-    //Vectors to store points
-    vector< vector<Point2d> > filtered_points;
-    vector<Point2d> filtered_pointsLeft, filtered_pointsRight;
+    
+
     //Output position and rotation
     Mat outPos = (Mat1d(1, 3) << 0, 0, 0);
     Mat outRot = Mat::eye(3, 3, CV_64F);
-    Mat descriptorLeft, descriptorRight;
 
     //TODO: add "Process first stereo image here". We have to set first image as frame of reference for all others
     cout<< "ProcessFirstStereo\n";
+    Mat lImg, rImg;
     processFirstStereo(tParser, surf, correspondance_matcher);
     cout<< "Loop\n";
+    Mat currDisparity;
     while( tParser.getIter() <= NTSD_DB_SIZE)
     {
         tParser.getNextStereoImages();
-        cvtColor(tParser.getLImage(), LGImage, COLOR_BGRA2GRAY);
-        cvtColor(tParser.getRImage(), RGImage, COLOR_BGRA2GRAY);
-        //cout << LGImage.rows << " cols: " << LGImage.cols << endl;
-        vector<KeyPoint> kpLeft,kpRight;
-        //Get features
-        cvHelpers::getFeatures(surf, LGImage, kpLeft, descriptorLeft );
-        cvHelpers::getFeatures(surf, RGImage, kpRight, descriptorRight );
-        // TODO: rename inlier_points to filteredFeatures or something
-        vector<vector<Point2d> > inlier_points =  cvHelpers::filterPoints(correspondance_matcher, kpLeft, descriptorLeft, kpRight, descriptorRight);
-        vector<Point3d> points_3d = cvHelpers::get3DPoints(inlier_points.at(0), inlier_points.at(1), currPosition, currRotation);
-        //Get point cloud
-        myPC = pclHelpers::Vec3DToPointCloudXYZRGB(points_3d, inlier_points.at(0), tParser.getLImage());
-        //Do ICP
-        pclHelpers::registerCurrentPointCloud(myPC);
-        //Apply transform to currentPos and currentRot
-        pclHelpers::performICP(currRotation, currPosition, outPos, outRot);
-        currRotation = outRot.clone();
-        currPosition = outPos.clone();
+        lImg = tParser.getLImage().clone();
+        rImg = tParser.getRImage().clone();
+
+        ROI = cvHelpers::generateDisparityMap(lImg, rImg, currDisparity, left_matcher, right_matcher, wls_filter );
+        lImg = lImg(ROI);
+
+        cvHelpers::getFeatures(surf, lImg, currentKp, currDesc );
+        vector<vector<Point2f>> filtered_img_coords = cvHelpers::findCorrespondance(correspondance_matcher, currentKp, currDesc, prevKp, prevDesc);
+        vector<Point3f> currWorldPts = cvHelpers::imgToWorldCoords(currDisparity, filtered_img_coords[0]);
+        vector<Point3f> prevWorldPts = cvHelpers::imgToWorldCoords(prevDisparity, filtered_img_coords[1]);
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr currPC = pclHelpers::Vec3DToPointCloudXYZRGB(currWorldPts, filtered_img_coords[0], lImg);
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr prevPC = pclHelpers::Vec3DToPointCloudXYZRGB(prevWorldPts, filtered_img_coords[1], prevLeftImage); 
+        pclHelpers::performICP(prevPC, currPC, currPosition, currRotation, outPos, outRot);
+        prevKp = currentKp;
+        prevLeftImage.release();
+        prevLeftImage = lImg.clone();
+        prevDesc.release();
+        prevDesc = currDesc.clone();
+        prevDisparity.release();
+        prevDisparity = currDisparity.clone();
         if( tParser.showStereoImages() == 27)
         {
             break;

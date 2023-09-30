@@ -65,6 +65,11 @@ Rect cvHelpers::generateDisparityMap(Mat& imLeft, Mat& imRight, Mat& outDisparit
 /// @param descriptor Output descriptor
 void cvHelpers::getFeatures( Ptr<SURF> surf, Mat image, vector<cv::KeyPoint>& keyPoints, Mat& descriptor  )
 {
+    if(!keyPoints.empty() || !descriptor.empty())
+    {
+        descriptor.release();
+        keyPoints.clear();
+    }
     surf->detectAndCompute(image, noArray(), keyPoints, descriptor);
 }
 
@@ -216,7 +221,7 @@ vector< vector<Point2d> > cvHelpers::filterPoints(cv::BFMatcher* matcher, vector
 /// @param disparityMap 16-bit signed disparity image
 /// @param imageCoords floating point image coords
 /// @return Vector containing world coordinates of features
-vector<Point3f> imgToWorldCoords(Mat disparityMap, vector<Point2f> imageCoords)
+vector<Point3f> cvHelpers::imgToWorldCoords(Mat disparityMap, vector<Point2f> imageCoords)
 {
     vector<Point3f> outVecDepth;
     int16_t currDisp = 0;

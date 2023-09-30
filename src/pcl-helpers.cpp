@@ -36,7 +36,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclHelpers::Vec3DToPointCloudXYZRGB(vecto
 {
     //Convert Point3D into PointXYZRGB
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud_ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud_ptr_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud_ptr_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);//(new pcl::pointcloud<pcl::pointXYZ>);
     for(uint16_t i = 0; i < points_3f.size(); i++)
     {
         if(!isValidP3f(points_3f[i]))
@@ -174,4 +174,47 @@ void pclHelpers::registerCurrentPointCloud( pcl::PointCloud<pcl::PointXYZRGB>::P
 
     pcl::io::savePCDFileASCII("final.pcd", *combinedPC);
     #endif
+}
+
+void pclHelpers::performICP(pcl::PointCloud<pcl::PointXYZRGB>::Ptr src, pcl::PointCloud<pcl::PointXYZRGB>::Ptr target,  cv::Mat currentPos, cv::Mat currentRot, cv::Mat& outPos, cv::Mat& outRot)
+{
+    pcl::PointCloud<pcl::PointXYZRGB> cc;
+    //Set up ICP
+    pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
+    icp.setInputSource( src );
+    icp.setInputTarget( target);
+    // icp.setRANSACIterations(200);
+    // icp.setMaximumIterations(200);
+    // icp.setMaxCorrespondenceDistance(0.5f);
+    // icp.setTransformationEpsilon (1e-9);
+    pcl::PointCloud<pcl::PointXYZRGB> Final;
+    icp.align(*src);
+    //Get output transform
+    Eigen::Matrix4f finalTransform = icp.getFinalTransformation();
+    Eigen::Matrix4d finalTd = finalTransform.cast <double> ();
+    if(finalTransform.isIdentity())
+    {
+        return;
+    }
+    cv:: Mat finalT;
+    Eigen::Matrix4d converted;
+    cv::eigen2cv(finalTd, finalT);
+
+    //Get final transform
+    cv::Mat currPose = cvHelpers::convertTo4x4Pose(currentRot, currentPos);
+    cout<<"curr Pose :\n" << currPose << endl;
+    cv::Mat finalPose = currPose * finalT;
+    cv::cv2eigen(finalPose, converted);
+    cout << "converted: \n" << converted << endl;
+    cvHelpers::decompose4x4Pose(finalPose, outRot, outPos);
+    cout<<"OutRot \n"<<outRot<<endl;
+    cout<<"OutPos \n"<<outPos<<endl;
+
+    cout<<"\n\n\n";
+    //cout << finalT << endl;
+    *combinedPC += *src;
+
+    pcl::io::savePCDFileASCII("final.pcd", *combinedPC);
+
+
 }

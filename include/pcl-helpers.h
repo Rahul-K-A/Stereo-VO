@@ -9,8 +9,6 @@ namespace pclHelpers{
     void registerFirstPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr first_pc);
     void registerCurrentPointCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr current_pc);
     void performICP(cv::Mat currentRot, cv::Mat currentPos, cv::Mat& outPos, cv::Mat& outRot);
-
-
-
+    void performICP(pcl::PointCloud<pcl::PointXYZRGB>::Ptr src, pcl::PointCloud<pcl::PointXYZRGB>::Ptr target,  cv::Mat currentPos, cv::Mat currentRot, cv::Mat& outPos, cv::Mat& outRot);
 }
 #endif //PCL_HELPERS_H
