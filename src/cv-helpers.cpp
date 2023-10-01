@@ -90,7 +90,7 @@ vector< vector<Point2f> > cvHelpers::findCorrespondance(Ptr<BFMatcher> correspon
     correspondance_matcher->knnMatch( descriptor2, descriptor1, knn_matches_21, 2 );
 
     //Perform lowes ratio test
-    const double ratio = 0.8;
+    const double ratio = 0.5;
     vector<cv::Point2f> selected_points1, selected_points2;
     
     //Do lowes ratio test for KNN matches and only accept point if both tests past
@@ -105,41 +105,10 @@ vector< vector<Point2f> > cvHelpers::findCorrespondance(Ptr<BFMatcher> correspon
             }
         }
     }
-    //TODO: Make this easier to understand
-    Mat E,R,t,mask;
-    //Find essential matrix and use the output mask to calculate inliers
-    E = cv::findEssentialMat(selected_points1, selected_points2, TsukubaParser::getCameraMatrix().at<double>(0,0),
-                           // cv::Point2f(0.f, 0.f),
-                           cv::Point2d(240.f, 320.f),
-                           cv::RANSAC, 0.999, 1.0, mask);
-    vector<cv::Point2f> inlier_match_points1, inlier_match_points2;
-    for(int i = 0; i < mask.rows; i++) {
-        if(mask.at<unsigned char>(i)){
-            inlier_match_points1.push_back(selected_points1[i]);
-            inlier_match_points2.push_back(selected_points2[i]);
-        }
-    }
-    mask.release();
-    cv::recoverPose(E, 
-                  inlier_match_points1,
-                  inlier_match_points2, 
-                  R, t, TsukubaParser::getCameraMatrix().at<double>(0,0), 
-                  // cv::Point2f(0, 0),
-                  cv::Point2d(240.f, 320.f),
-                  mask);
-
-    //Do second round of filtering              
-    vector<cv::Point2f> triangulation_points1, triangulation_points2;
-    for(int i = 0; i < mask.rows; i++) {
-        if(mask.at<unsigned char>(i)){
-            triangulation_points1.push_back (cv::Point2f( inlier_match_points1[i].x, inlier_match_points1[i].y));
-            triangulation_points2.push_back(cv::Point2f( inlier_match_points2[i].x, inlier_match_points2[i].y));
-        }
-    }
 
     vector< vector<Point2f> > results;
-    results.push_back(triangulation_points1);
-    results.push_back(triangulation_points2);
+    results.push_back(selected_points1);
+    results.push_back(selected_points2);
     return results;
 }
 
@@ -351,5 +320,49 @@ void cvHelpers::decompose4x4Pose(Mat pose, Mat& outRotation, Mat& outPosition)
 }
 
 
+void cvHelpers::pose_estimation_3d3d(
+    const vector<Point3f> &pts1,
+    const vector<Point3f> &pts2,
+    Mat &R, Mat &t)
+{
+    Point3f p1, p2;
+// center of mass
+    int N = pts1.size();
+    for (int i = 0; i < N; i++) {
+        p1 += pts1[i];
+        p2 += pts2[i];
+    }
+    p1 = Point3f(Vec3f(p1) / N);
+    p2 = Point3f(Vec3f(p2) / N);
+    vector<Point3f> q1(N), q2(N); // remove the center
+    for (int i = 0; i < N; i++) {
+        q1[i] = pts1[i] - p1;
+        q2[i] = pts2[i] - p2;
+    }
+
+    // compute q1∗q2^T
+    Eigen::Matrix3d W = Eigen::Matrix3d::Zero();
+    for (int i = 0; i < N; i++) {
+        W += Eigen::Vector3d(q1[i].x, q1[i].y, q1[i].z) * Eigen::Vector3d(q2[i].x, q2[i].y, q2[i].z).transpose();
+    }
+
+    Eigen::JacobiSVD<Eigen::Matrix3d> svd(W, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::Matrix3d U = svd.matrixU();
+    Eigen::Matrix3d V = svd.matrixV();
+    Eigen::Matrix3d R_ = U * (V.transpose());
+    if (R_.determinant() < 0) {
+        R_ = -R_;
+    }
+    Eigen::Vector3d t_ = Eigen::Vector3d(p1.x, p1.y, p1.z) - R_ * Eigen::Vector3d(p2.x, p2.y, p2.z);
+    // convert to cv::Mat
+    R = (Mat_<double>(3, 3) <<
+    R_(0, 0), R_(0, 1), R_(0, 2),
+    R_(1, 0), R_(1, 1), R_(1, 2),
+    R_(2, 0), R_(2, 1), R_(2, 2)
+    );
+
+    R = R.inv();
+    t = (Mat_<double>(3, 1) << t_(0, 0), t_(1, 0), t_(2, 0));
+}
 
 

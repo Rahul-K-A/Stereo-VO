@@ -26,6 +26,7 @@ namespace cvHelpers{
     cv::Mat convertTo4x4Pose(cv::Mat rotation, cv::Mat position);
     
     void decompose4x4Pose(cv::Mat pose, cv::Mat& outRotation, cv::Mat& outPosition);
+    void pose_estimation_3d3d( const vector<cv::Point3f> &pts1, const vector<cv::Point3f> &pts2,  cv::Mat &R, cv::Mat &t);
 }
 #endif //CV_HELPERS_H
 

@@ -1,5 +1,4 @@
 #include "common-includes.h"
-#include "pcl-helpers.h"
 #include "cv-helpers.h"
 #include "TsukubaParser.h"
 
@@ -9,7 +8,7 @@ using namespace xfeatures2d;
 using namespace ximgproc;
 
 //Left cam -> origin of coordinate system
-Mat currPosition = (Mat1d(1, 3) << 0, 0, 0);
+Mat currPosition = (Mat1d(3, 1) << 0, 0, 0);
 Mat currRotation = Mat::eye(3, 3, CV_64F);
 Mat LGImage, RGImage;
 
@@ -54,8 +53,8 @@ int main(int argc, char** argv)
     
 
     //Output position and rotation
-    Mat outPos = (Mat1d(1, 3) << 0, 0, 0);
-    Mat outRot = Mat::eye(3, 3, CV_64F);
+    Mat outPos;
+    Mat outRot;
 
     //TODO: add "Process first stereo image here". We have to set first image as frame of reference for all others
     cout<< "ProcessFirstStereo\n";
@@ -76,16 +75,34 @@ int main(int argc, char** argv)
         vector<vector<Point2f>> filtered_img_coords = cvHelpers::findCorrespondance(correspondance_matcher, currentKp, currDesc, prevKp, prevDesc);
         vector<Point3f> currWorldPts = cvHelpers::imgToWorldCoords(currDisparity, filtered_img_coords[0]);
         vector<Point3f> prevWorldPts = cvHelpers::imgToWorldCoords(prevDisparity, filtered_img_coords[1]);
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr currPC = pclHelpers::Vec3DToPointCloudXYZRGB(currWorldPts, filtered_img_coords[0], lImg);
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr prevPC = pclHelpers::Vec3DToPointCloudXYZRGB(prevWorldPts, filtered_img_coords[1], prevLeftImage); 
-        pclHelpers::performICP(prevPC, currPC, currPosition, currRotation, outPos, outRot);
-        prevKp = currentKp;
-        prevLeftImage.release();
-        prevLeftImage = lImg.clone();
-        prevDesc.release();
-        prevDesc = currDesc.clone();
-        prevDisparity.release();
-        prevDisparity = currDisparity.clone();
+        cvHelpers::pose_estimation_3d3d(prevWorldPts, currWorldPts, outRot, outPos);
+
+        currRotation = outRot * currRotation;
+        currPosition = currPosition + currRotation * outPos;
+        cout << tParser.getIter() - 1 << endl;
+        cout << "currPosition" << endl;
+        cout << currPosition << endl;
+        cout << "currRotation" << endl;
+        cout << currRotation << endl;
+        cout << "\n\n";
+
+
+        // pcl::PointCloud<pcl::PointXYZRGB>::Ptr currPC = pclHelpers::Vec3DToPointCloudXYZRGB(currWorldPts, filtered_img_coords[0], lImg);
+        // pcl::PointCloud<pcl::PointXYZRGB>::Ptr prevPC = pclHelpers::Vec3DToPointCloudXYZRGB(prevWorldPts, filtered_img_coords[1], prevLeftImage); 
+        // if(currWorldPts.size() > 25)
+        // {
+        //     cout<<" !!\n";
+        //     pclHelpers::performICP(prevPC, currPC, currPosition, currRotation, outPos, outRot);
+        //     prevKp = currentKp;
+        //     prevLeftImage.release();
+        //     prevLeftImage = lImg.clone();
+        //     prevDesc.release();
+        //     prevDesc = currDesc.clone();
+        //     prevDisparity.release();
+        //     prevDisparity = currDisparity.clone();
+        //     currRotation = outRot.clone();
+        //     currPosition = outPos.clone();
+        // }
         if( tParser.showStereoImages() == 27)
         {
             break;
